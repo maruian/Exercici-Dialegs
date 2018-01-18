@@ -4,8 +4,8 @@ import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.DialogInterface;
 import android.graphics.Color;
+import android.icu.util.GregorianCalendar;
 import android.icu.util.Calendar;
-import android.os.PersistableBundle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -16,10 +16,8 @@ import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
-import java.util.Date;
-import java.util.Timer;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, TimePickerDialog.OnTimeSetListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, TimePickerDialog.OnClickListener {
 
     private Button botoData;
     private Button botoHora;
@@ -30,6 +28,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private AlertDialog.Builder adBuilder;
     private AlertDialog alertDialog;
     private int estaDialog;
+
 
 
     @Override
@@ -50,6 +49,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         botoData.setOnClickListener(this);
         botoHora.setOnClickListener(this);
         botoColor.setOnClickListener(this);
+
+
+        Calendar calendar = new GregorianCalendar(android.icu.util.TimeZone.getTimeZone("Europe/Madrid"));
+
+
+        crearCalendario(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+        crearReloj(calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE));
+        crearAlertDialog();
     }
 
 
@@ -57,58 +64,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View view) {
         switch (view.getId()){
             case R.id.botoData:
-                Calendar calendar = Calendar.getInstance();
-                int anyo = calendar.get(Calendar.YEAR);
-                int mes = calendar.get(Calendar.MONTH);
-                int dia = calendar.get(Calendar.DAY_OF_MONTH);
-                dpDialog = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
-                    @Override
-                    public void onDateSet(DatePicker datePicker, int i, int i1, int i2) {
-                        textoFecha.setText("DATA: "+i2+"/"+(i1+1)+"/"+i);
-                    }
-                }, anyo,mes,dia);
-                estaDialog = 1;
+                // mostrem el calendari
                 dpDialog.show();
                 break;
             case R.id.botoHora:
-
-                //vore si em pot tornar l'hora actual
-                int horas = 0;
-                int minutos = 0;
-                tpDialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
-                    @Override
-                    public void onTimeSet(TimePicker timePicker, int i, int i1){
-                        textoHora.setText("HORA: "+i+":"+(i1<10?"0"+i1:i1));
-                    }
-                }, horas, minutos, true);
-                estaDialog = 2;
+                // mostrem el rellotge
                 tpDialog.show();
                 break;
             case R.id.botoColor:
-                adBuilder = new AlertDialog.Builder(this);
-                adBuilder
-                        .setTitle("Tria un color")
-                        .setItems(R.array.opciones, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                switch (i){
-                                    case 0:
-                                        textoColor.setText("COLOR: Roig");
-                                        textoColor.setTextColor(Color.RED);
-                                        break;
-                                    case 1:
-                                        textoColor.setText("COLOR: Blau");
-                                        textoColor.setTextColor(Color.BLUE);
-                                        break;
-                                    case 2:
-                                        textoColor.setText("COLOR: Verd");
-                                        textoColor.setTextColor(Color.GREEN);
-                                        break;
-                                }
-                            }
-                        });
-                alertDialog = adBuilder.create();
-                estaDialog = 3;
+                // mostrem el alert dialog
                 alertDialog.show();
                 break;
         }
@@ -120,6 +84,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         outState.putCharSequence("DATA", textoFecha.getText().toString());
         outState.putCharSequence("HORA", textoHora.getText().toString());
         outState.putCharSequence("COLOR", textoColor.getText().toString());
+
+        //comprovem quin dialeg s'esta mostrant
+        if (dpDialog.isShowing())
+            estaDialog=1;
+        if (tpDialog.isShowing())
+            estaDialog=2;
+        if (alertDialog.isShowing())
+            estaDialog=3;
+
+        // guardem les dades adients segons el que es mostre
         if (estaDialog == 1){
             int any = dpDialog.getDatePicker().getYear();
             int mes = dpDialog.getDatePicker().getMonth();
@@ -128,11 +102,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             outState.putInt("MES",mes);
             outState.putInt("DIA",dia);
         } else if (estaDialog == 2){
-            //salvar les dades del rellotge
-
+            outState.putBundle("TIMEPICKERDIALOG",tpDialog.onSaveInstanceState());
         }
-        outState.putInt("ESTADIALOG",estaDialog);
 
+        outState.putInt("ESTADIALOG",estaDialog);
     }
 
     @Override
@@ -150,23 +123,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
         }
 
-        int i = savedInstanceState.getInt("ESTADIALOG");
-        switch (i){
+        switch (savedInstanceState.getInt("ESTADIALOG")){
             case 1:
                 // recuperar dades de la data
-
-                int anyo =
-                dpDialog = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
-                    @Override
-                    public void onDateSet(DatePicker datePicker, int i, int i1, int i2) {
-                        textoFecha.setText("DATA: "+i2+"/"+(i1+1)+"/"+i);
-                    }
-                }, anyo,mes,dia);
+                // instanciem de nou el DatePickerDialog
+                crearCalendario(savedInstanceState.getInt("ANY"),savedInstanceState.getInt("MES"),savedInstanceState.getInt("DIA"));
+                dpDialog.show();
                 break;
             case 2:
-                tpDialog.show();
+                // recuperem el timepickerdialog
+                tpDialog.onRestoreInstanceState(savedInstanceState.getBundle("TIMEPICKERDIALOG"));
                 break;
             case 3:
+                // instanciem de nou el AlertDialog
+                crearAlertDialog();
                 alertDialog.show();
                 break;
             default:
@@ -174,8 +144,54 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+
+    private void crearCalendario(int anyo, int mes, int dia){
+        dpDialog = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
+            @Override
+            public void onDateSet(DatePicker datePicker, int i, int i1, int i2) {
+                textoFecha.setText("DATA: "+i2+"/"+(i1+1)+"/"+i);
+            }
+        }, anyo,mes,dia);
+    }
+
+    private void crearReloj(int hora, int minutos){
+        tpDialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
+            @Override
+            public void onTimeSet(TimePicker timePicker, int i, int i1){
+                textoHora.setText("HORA: "+(i<10?"0"+i:i)+":"+(i1<10?"0"+i1:i1));
+            }
+        }, hora, minutos, true);
+    }
+
+    private void crearAlertDialog(){
+        adBuilder = new AlertDialog.Builder(this);
+        adBuilder
+                .setTitle("Tria un color")
+                .setItems(R.array.opciones, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        switch (i){
+                            case 0:
+                                textoColor.setText("COLOR: Roig");
+                                textoColor.setTextColor(Color.RED);
+                                break;
+                            case 1:
+                                textoColor.setText("COLOR: Blau");
+                                textoColor.setTextColor(Color.BLUE);
+                                break;
+                            case 2:
+                                textoColor.setText("COLOR: Verd");
+                                textoColor.setTextColor(Color.GREEN);
+                                break;
+                        }
+                    }
+                });
+        alertDialog = adBuilder.create();
+    }
+
+
     @Override
-    public void onTimeSet(TimePicker timePicker, int i, int i1) {
-        // guardar hora i minuts com atributs de la classe
+    public void onClick(DialogInterface dialogInterface, int i) {
+        Toast.makeText(this,i+"",Toast.LENGTH_SHORT).show();
     }
 }
